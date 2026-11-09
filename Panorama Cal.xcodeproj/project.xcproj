@@ -11,20 +11,20 @@
     ],
   },
   "files": [
-    { "kind": "folder", "path": "CalView", "target-membership": [ "CalView" ] },
+    { "kind": "folder", "path": "CalView", "target-membership": [ "Panorama Cal" ] },
     {
       "kind": "group",
       "name": "Products",
       "children": [
-        { "path": "<PRODUCTS>/CalView.app", "id": "405DBAC430A218DA00D3CCD0", "type": "wrapper.application", "index": false },
+        { "path": "<PRODUCTS>/Panorama Cal.app", "id": "405DBAC430A218DA00D3CCD0", "type": "wrapper.application", "index": false },
       ],
     },
   ],
   "targets": [
     {
-      "name": "CalView",
+      "name": "Panorama Cal",
       "id": "405DBAC330A218DA00D3CCD0",
-      "product": "Products/CalView.app",
+      "product": "Products/Panorama Cal.app",
       "product-type": "application",
       "build-phases": [
         "compile-sources",
@@ -52,6 +52,7 @@
         "ENABLE_RESOURCE_ACCESS_USB": "NO",
         "ENABLE_USER_SELECTED_FILES": "readonly",
         "GENERATE_INFOPLIST_FILE": "YES",
+        "INFOPLIST_KEY_CFBundleDisplayName": "Panorama Cal",
         "INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription": "This app shows your upcoming events in a visual overview.",
         "INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]": "YES",
         "INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]": "YES",

@@ -45,6 +45,19 @@ struct DayCell: View {
     private var isToday: Bool {
         Calendar.current.isDateInToday(day)
     }
+    
+    private var isEvenMonth: Bool {
+        Calendar.current.component(.month, from: day) % 2 == 0
+    }
+
+    private var headerText: String {
+        let isFirst = Calendar.current.component(.day, from: day) == 1
+        return day.formatted(
+            isFirst
+                ? .dateTime.weekday(.abbreviated).month(.abbreviated).day()
+                : .dateTime.weekday(.abbreviated).day()
+        )
+    }
 
     private func color(for event: EKEvent) -> Color {
         if let cg = event.calendar?.cgColor {
@@ -55,7 +68,7 @@ struct DayCell: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(day, format: .dateTime.weekday(.abbreviated).day())
+            Text(headerText)
                 .font(.caption.bold())
                 .padding(.horizontal, 4)
                 .background(isToday ? Color.red : Color.clear)
@@ -90,7 +103,11 @@ struct DayCell: View {
         }
         .frame(maxWidth: .infinity, minHeight: 80, alignment: .topLeading)
         .padding(4)
-        .background(isToday ? Color.red.opacity(0.12) : Color.gray.opacity(0.15))
+        .background(
+            isToday
+                ? Color.red.opacity(0.12)
+                : Color.gray.opacity(isEvenMonth ? 0.08 : 0.22)
+        )
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .overlay(
             RoundedRectangle(cornerRadius: 6)
