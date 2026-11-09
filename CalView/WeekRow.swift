@@ -11,6 +11,8 @@ import EventKit
 struct WeekRow: View {
     let weekStart: Date
     let events: [EKEvent]
+    let onSelect: (EKEvent) -> Void
+    let onShowDay: (Date, [EKEvent]) -> Void
 
     private var days: [Date] {
         (0..<7).map { Calendar.current.date(byAdding: .day, value: $0, to: weekStart)! }
@@ -19,7 +21,7 @@ struct WeekRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 4) {
             ForEach(days, id: \.self) { day in
-                DayCell(day: day, events: eventsOn(day))
+                DayCell(day: day, events: eventsOn(day), onSelect: onSelect, onShowDay: onShowDay)
             }
         }
     }
@@ -37,16 +39,18 @@ struct WeekRow: View {
 struct DayCell: View {
     let day: Date
     let events: [EKEvent]
+    let onSelect: (EKEvent) -> Void
+    let onShowDay: (Date, [EKEvent]) -> Void
+
+    private var isToday: Bool {
+        Calendar.current.isDateInToday(day)
+    }
 
     private func color(for event: EKEvent) -> Color {
         if let cg = event.calendar?.cgColor {
             return Color(cgColor: cg)
         }
         return .blue
-    }
-    
-    private var isToday: Bool {
-        Calendar.current.isDateInToday(day)
     }
 
     var body: some View {
@@ -74,12 +78,14 @@ struct DayCell: View {
                             .frame(width: 3)
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 3))
+                    .onTapGesture { onSelect(item.element) }
             }
 
             if events.count > 3 {
                 Text("+\(events.count - 3) more")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .font(.caption2.bold())
+                    .foregroundStyle(.blue)
+                    .onTapGesture { onShowDay(day, events) }
             }
         }
         .frame(maxWidth: .infinity, minHeight: 80, alignment: .topLeading)
@@ -89,6 +95,6 @@ struct DayCell: View {
         .overlay(
             RoundedRectangle(cornerRadius: 6)
                 .stroke(isToday ? Color.red : Color.clear, lineWidth: 2)
-        ).opacity(day < Calendar.current.startOfDay(for: Date()) ? 0.45 : 1)
+        )
     }
 }
