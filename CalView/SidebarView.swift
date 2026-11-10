@@ -11,6 +11,7 @@ import EventKit
 struct SidebarView: View {
     let calendar: CalendarStore
     @Binding var months: Int
+    @AppStorage("showEventTimes") private var showTimes = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -24,6 +25,12 @@ struct SidebarView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
+            }
+            
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Display")
+                    .font(.headline)
+                Toggle("Show event times", isOn: $showTimes)
             }
 
             VStack(alignment: .leading, spacing: 10) {

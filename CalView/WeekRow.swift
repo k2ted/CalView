@@ -42,9 +42,28 @@ struct DayCell: View {
     let onSelect: (EKEvent) -> Void
     let onShowDay: (Date, [EKEvent]) -> Void
     @Environment(\.colorScheme) private var colorScheme
+    @AppStorage("showEventTimes") private var showTimes = false
 
     private var isToday: Bool {
         Calendar.current.isDateInToday(day)
+    }
+    
+    private var sortedEvents: [EKEvent] {
+        events.sorted { a, b in
+            if a.isAllDay != b.isAllDay { return a.isAllDay }
+            return a.startDate < b.startDate
+        }
+    }
+
+    private func label(for event: EKEvent) -> String {
+        let title = event.title ?? "Untitled"
+        guard showTimes,
+              !event.isAllDay,
+              Calendar.current.isDate(event.startDate, inSameDayAs: day) else {
+            return title
+        }
+        let time = event.startDate.formatted(.dateTime.hour().minute())
+        return "\(time) \(title)"
     }
     
     private var isEvenMonth: Bool {
@@ -76,9 +95,9 @@ struct DayCell: View {
                 .foregroundStyle(isToday ? Color.white : Color.primary)
                 .clipShape(Capsule())
 
-            ForEach(Array(events.prefix(3).enumerated()), id: \.offset) { item in
+            ForEach(Array(sortedEvents.prefix(3).enumerated()), id: \.offset) { item in
                 let eventColor = color(for: item.element)
-                Text(item.element.title ?? "Untitled")
+                Text(label(for: item.element))
                     .font(.caption2)
                     .lineLimit(1)
                     .padding(.vertical, 2)
@@ -92,7 +111,7 @@ struct DayCell: View {
                             .frame(width: 3)
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 3))
-                    .onTapGesture { onSelect(item.element) }
+                    .onTapGesture { onShowDay(day, sortedEvents) }
             }
 
             if events.count > 3 {
