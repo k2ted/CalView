@@ -70,6 +70,7 @@ struct ContentView: View {
                     }
                 }
                 .buttonStyle(.bordered)
+                .buttonBorderShape(.roundedRectangle)
                 .padding()
 
                 if calendar.accessDenied {
