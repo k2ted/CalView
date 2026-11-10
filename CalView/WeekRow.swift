@@ -41,13 +41,27 @@ struct DayCell: View {
     let events: [EKEvent]
     let onSelect: (EKEvent) -> Void
     let onShowDay: (Date, [EKEvent]) -> Void
+
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage("showEventTimes") private var showTimes = false
 
     private var isToday: Bool {
         Calendar.current.isDateInToday(day)
     }
-    
+
+    private var isEvenMonth: Bool {
+        Calendar.current.component(.month, from: day) % 2 == 0
+    }
+
+    private var headerText: String {
+        let isFirst = Calendar.current.component(.day, from: day) == 1
+        return day.formatted(
+            isFirst
+                ? .dateTime.weekday(.abbreviated).month(.abbreviated).day()
+                : .dateTime.weekday(.abbreviated).day()
+        )
+    }
+
     private var sortedEvents: [EKEvent] {
         events.sorted { a, b in
             if a.isAllDay != b.isAllDay { return a.isAllDay }
@@ -64,19 +78,6 @@ struct DayCell: View {
         }
         let time = event.startDate.formatted(.dateTime.hour().minute())
         return "\(time) \(title)"
-    }
-    
-    private var isEvenMonth: Bool {
-        Calendar.current.component(.month, from: day) % 2 == 0
-    }
-
-    private var headerText: String {
-        let isFirst = Calendar.current.component(.day, from: day) == 1
-        return day.formatted(
-            isFirst
-                ? .dateTime.weekday(.abbreviated).month(.abbreviated).day()
-                : .dateTime.weekday(.abbreviated).day()
-        )
     }
 
     private func color(for event: EKEvent) -> Color {
@@ -111,14 +112,14 @@ struct DayCell: View {
                             .frame(width: 3)
                     }
                     .clipShape(RoundedRectangle(cornerRadius: 3))
-                    .onTapGesture { onShowDay(day, sortedEvents) }
+                    .onTapGesture { onSelect(item.element) }
             }
 
             if events.count > 3 {
                 Text("+\(events.count - 3) more")
                     .font(.caption2.bold())
                     .foregroundStyle(.blue)
-                    .onTapGesture { onShowDay(day, events) }
+                    .onTapGesture { onShowDay(day, sortedEvents) }
             }
         }
         .frame(maxWidth: .infinity, minHeight: 80, alignment: .topLeading)
@@ -133,5 +134,7 @@ struct DayCell: View {
             RoundedRectangle(cornerRadius: 6)
                 .stroke(isToday ? Color.red : Color.clear, lineWidth: 2)
         )
+        .contentShape(RoundedRectangle(cornerRadius: 6))
+        .onTapGesture { onShowDay(day, sortedEvents) }
     }
 }

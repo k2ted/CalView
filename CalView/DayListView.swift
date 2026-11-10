@@ -53,6 +53,11 @@ struct DayListView: View {
                     }
                 }
             }
+            .overlay {
+                if events.isEmpty {
+                    ContentUnavailableView("No events", systemImage: "calendar")
+                }
+            }
             .navigationTitle(day.formatted(date: .complete, time: .omitted))
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
