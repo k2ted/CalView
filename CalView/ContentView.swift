@@ -35,6 +35,12 @@ struct ContentView: View {
             DayListView(day: item.day, events: item.events)
         }
     }
+    
+    private var monthStarts: [Date] {
+        let cal = Calendar.current
+        guard let first = cal.dateInterval(of: .month, for: Date())?.start else { return [] }
+        return (0..<months).compactMap { cal.date(byAdding: .month, value: $0, to: first) }
+    }
 
     private var mainContent: some View {
         ScrollViewReader { proxy in
@@ -50,10 +56,20 @@ struct ContentView: View {
 
                     Spacer()
 
+                    Menu("Jump to") {
+                        ForEach(monthStarts, id: \.self) { month in
+                            Button(month.formatted(.dateTime.month(.wide).year())) {
+                                scrollToMonth(month, proxy)
+                            }
+                        }
+                    }
+                    .fixedSize()
+
                     Button("Today") {
                         jumpToToday(proxy)
                     }
                 }
+                .buttonStyle(.bordered)
                 .padding()
 
                 if calendar.accessDenied {
@@ -87,9 +103,8 @@ struct ContentView: View {
         }
     }
 
-    private func jumpToToday(_ proxy: ScrollViewProxy) {
+    private func scrollToMonth(_ monthStart: Date, _ proxy: ScrollViewProxy) {
         let cal = Calendar.current
-        guard let monthStart = cal.dateInterval(of: .month, for: Date())?.start else { return }
         if let week = calendar.weekStarts.first(where: {
             cal.isDate(monthStart, equalTo: $0, toGranularity: .weekOfYear)
         }) {
@@ -97,6 +112,11 @@ struct ContentView: View {
                 proxy.scrollTo(week, anchor: .top)
             }
         }
+    }
+
+    private func jumpToToday(_ proxy: ScrollViewProxy) {
+        guard let monthStart = Calendar.current.dateInterval(of: .month, for: Date())?.start else { return }
+        scrollToMonth(monthStart, proxy)
     }
 
     private func monthLabel(for weekStart: Date, index: Int) -> String? {
