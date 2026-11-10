@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import EventKit
+@preconcurrency import EventKit
 
 @MainActor
 @Observable
@@ -16,6 +16,7 @@ class CalendarStore {
     var calendars: [EKCalendar] = []
     var weekStarts: [Date] = []
     var accessDenied = false
+    @ObservationIgnored private var currentMonths = 3
 
     var hiddenIDs: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "hiddenCalendars") ?? []) {
         didSet {
@@ -46,8 +47,16 @@ class CalendarStore {
     func hideAll() {
         hiddenIDs = Set(calendars.map { $0.calendarIdentifier })
     }
+    
+    func startObservingChanges() async {
+        for await _ in NotificationCenter.default.notifications(named: .EKEventStoreChanged) {
+            store.refreshSourcesIfNecessary()
+            await load(months: currentMonths)
+        }
+    }
 
     func load(months: Int) async {
+        currentMonths = months
         do {
             let granted = try await store.requestFullAccessToEvents()
             guard granted else {

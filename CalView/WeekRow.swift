@@ -41,6 +41,7 @@ struct DayCell: View {
     let events: [EKEvent]
     let onSelect: (EKEvent) -> Void
     let onShowDay: (Date, [EKEvent]) -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     private var isToday: Bool {
         Calendar.current.isDateInToday(day)
@@ -106,7 +107,7 @@ struct DayCell: View {
         .background(
             isToday
                 ? Color.red.opacity(0.12)
-                : Color.gray.opacity(isEvenMonth ? 0.08 : 0.22)
+                : Color.gray.opacity(isEvenMonth ? 0.08 : (colorScheme == .dark ? 0.32 : 0.22))
         )
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .overlay(

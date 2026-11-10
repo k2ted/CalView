@@ -27,6 +27,7 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: showSidebar)
         .task(id: months) { await calendar.load(months: months) }
+        .task { await calendar.startObservingChanges() }
         .sheet(item: $selected) { item in
             EventDetailView(event: item.event)
         }
