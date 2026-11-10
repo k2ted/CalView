@@ -10,8 +10,8 @@ import EventKit
 
 struct ContentView: View {
     @State private var calendar = CalendarStore()
-    @State private var months = 3
-    @State private var showSidebar = true
+    @AppStorage("selectedMonths") private var months = 3
+    @State private var showSidebar = false
     @State private var selected: EventItem?
     @State private var selectedDay: DayItem?
 
