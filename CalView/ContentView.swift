@@ -25,6 +25,7 @@ struct ContentView: View {
                         Text("12 months").tag(12)
                     }
                     .pickerStyle(.segmented)
+                    .labelsHidden()
 
                     Button("Today") {
                         jumpToToday(proxy)
@@ -48,18 +49,20 @@ struct ContentView: View {
                     ScrollView {
                         LazyVStack(spacing: 4) {
                             ForEach(Array(calendar.weekStarts.enumerated()), id: \.element) { index, weekStart in
-                                if let label = monthLabel(for: weekStart, index: index) {
-                                    Text(label)
-                                        .font(.headline)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .padding(.top, 8)
+                                VStack(spacing: 4) {
+                                    if let label = monthLabel(for: weekStart, index: index) {
+                                        Text(label)
+                                            .font(.headline)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .padding(.top, 8)
+                                    }
+                                    WeekRow(
+                                        weekStart: weekStart,
+                                        events: calendar.visibleEvents,
+                                        onSelect: { selected = EventItem(event: $0) },
+                                        onShowDay: { day, events in selectedDay = DayItem(day: day, events: events) }
+                                    )
                                 }
-                                WeekRow(
-                                    weekStart: weekStart,
-                                    events: calendar.visibleEvents,
-                                    onSelect: { selected = EventItem(event: $0) },
-                                    onShowDay: { day, events in selectedDay = DayItem(day: day, events: events) }
-                                )
                                 .id(weekStart)
                             }
                         }
@@ -79,8 +82,9 @@ struct ContentView: View {
 
     private func jumpToToday(_ proxy: ScrollViewProxy) {
         let cal = Calendar.current
+        guard let monthStart = cal.dateInterval(of: .month, for: Date())?.start else { return }
         if let week = calendar.weekStarts.first(where: {
-            cal.isDate(Date(), equalTo: $0, toGranularity: .weekOfYear)
+            cal.isDate(monthStart, equalTo: $0, toGranularity: .weekOfYear)
         }) {
             withAnimation {
                 proxy.scrollTo(week, anchor: .top)
