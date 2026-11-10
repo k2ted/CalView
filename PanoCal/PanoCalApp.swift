@@ -9,9 +9,27 @@ import SwiftUI
 
 @main
 struct PanoCalApp: App {
+    @AppStorage("selectedMonths") private var months = 3
+    @AppStorage("showEventTimes") private var showTimes = false
+
     var body: some Scene {
         WindowGroup {
             ContentView()
+        }
+        .commands {
+            CommandMenu("Display") {
+                Button("3 Months") { months = 3 }
+                    .keyboardShortcut("1", modifiers: .command)
+                Button("6 Months") { months = 6 }
+                    .keyboardShortcut("2", modifiers: .command)
+                Button("12 Months") { months = 12 }
+                    .keyboardShortcut("3", modifiers: .command)
+
+                Divider()
+
+                Toggle("Show Event Times", isOn: $showTimes)
+                    .keyboardShortcut("e", modifiers: .command)
+            }
         }
     }
 }

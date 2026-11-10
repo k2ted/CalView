@@ -53,6 +53,7 @@ struct ContentView: View {
                             .labelStyle(.iconOnly)
                     }
                     .help("Show or hide the sidebar")
+                    .keyboardShortcut("s", modifiers: [.command, .control])
 
                     Spacer()
 
@@ -68,6 +69,7 @@ struct ContentView: View {
                     Button("Today") {
                         jumpToToday(proxy)
                     }
+                    .keyboardShortcut("t", modifiers: .command)
                 }
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.roundedRectangle)
