@@ -11,33 +11,46 @@ import EventKit
 struct ContentView: View {
     @State private var calendar = CalendarStore()
     @State private var months = 3
-    @State private var showFilter = false
+    @State private var showSidebar = true
     @State private var selected: EventItem?
     @State private var selectedDay: DayItem?
 
     var body: some View {
+        HStack(spacing: 0) {
+            if showSidebar {
+                SidebarView(calendar: calendar, months: $months)
+                    .frame(width: 260)
+                    .transition(.move(edge: .leading))
+                Divider()
+            }
+            mainContent
+        }
+        .animation(.easeInOut(duration: 0.2), value: showSidebar)
+        .task(id: months) { await calendar.load(months: months) }
+        .sheet(item: $selected) { item in
+            EventDetailView(event: item.event)
+        }
+        .sheet(item: $selectedDay) { item in
+            DayListView(day: item.day, events: item.events)
+        }
+    }
+
+    private var mainContent: some View {
         ScrollViewReader { proxy in
-            VStack {
+            VStack(spacing: 0) {
                 HStack {
-                    Picker("Range", selection: $months) {
-                        Text("3 months").tag(3)
-                        Text("6 months").tag(6)
-                        Text("12 months").tag(12)
+                    Button {
+                        showSidebar.toggle()
+                    } label: {
+                        Label("Sidebar", systemImage: "sidebar.left")
+                            .labelStyle(.iconOnly)
                     }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
+                    .help("Show or hide the sidebar")
+
+                    Spacer()
 
                     Button("Today") {
                         jumpToToday(proxy)
-                    }
-
-                    Button {
-                        showFilter.toggle()
-                    } label: {
-                        Label("Calendars", systemImage: "line.3.horizontal.decrease.circle")
-                    }
-                    .popover(isPresented: $showFilter) {
-                        CalendarFilterView(calendar: calendar)
                     }
                 }
                 .padding()
@@ -70,13 +83,6 @@ struct ContentView: View {
                     }
                 }
             }
-        }
-        .task(id: months) { await calendar.load(months: months) }
-        .sheet(item: $selected) { item in
-            EventDetailView(event: item.event)
-        }
-        .sheet(item: $selectedDay) { item in
-            DayListView(day: item.day, events: item.events)
         }
     }
 
