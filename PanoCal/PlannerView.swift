@@ -11,7 +11,8 @@ import EventKit
 private enum PlannerMetrics {
     static let laneWidth: CGFloat = 12
     static let laneGap: CGFloat = 2
-    static let laneStartX: CGFloat = 32
+    static let labelWidth: CGFloat = 20
+    static let laneStartX: CGFloat = 26    // cell padding 3 + label 20 + spacing 3
 }
 
 private func plannerColor(for event: EKEvent) -> Color {
@@ -47,6 +48,7 @@ struct PlannerView: View {
         var bars: [PlannerBar] = []
         var laneCount = 0
         var lanedIndexes: Set<Int> = []
+        var lanesUsedByRow: [Int] = Array(repeating: 0, count: 31)
     }
 
     private var monthStarts: [Date] {
@@ -140,6 +142,9 @@ struct PlannerView: View {
                 after: span.after
             ))
             result.lanedIndexes.insert(span.index)
+            for row in span.startRow...span.endRow {
+                result.lanesUsedByRow[row] = max(result.lanesUsedByRow[row], lane + 1)
+            }
         }
         result.laneCount = laneEnds.count
         return result
@@ -179,9 +184,6 @@ struct PlannerView: View {
         let dayCount = cal.range(of: .day, in: .month, for: monthStart)?.count ?? 30
         let layout = makeColumnLayout(events: events, monthStart: monthStart, dayCount: dayCount,
                                       maxLanes: colW > 180 ? 3 : 2)
-        let reserve: CGFloat = layout.laneCount > 0
-            ? CGFloat(layout.laneCount) * (PlannerMetrics.laneWidth + PlannerMetrics.laneGap)
-            : 0
 
         return VStack(spacing: rowGap) {
             Text(monthStart.formatted(.dateTime.month(.abbreviated).year()))
@@ -195,6 +197,7 @@ struct PlannerView: View {
                     let chips = plannerSorted(
                         indexes.filter { !layout.lanedIndexes.contains($0) }.map { events[$0] }
                     )
+                    let reserve = CGFloat(layout.lanesUsedByRow[i]) * (PlannerMetrics.laneWidth + PlannerMetrics.laneGap)
 
                     PlannerDayCell(
                         date: date,
@@ -279,7 +282,7 @@ struct PlannerDayCell: View {
     }
 
     private var maxChips: Int {
-        let eventWidth = width - 36 - reserve
+        let eventWidth = width - 30 - reserve
         return min(3, max(1, Int(eventWidth / 60)))
     }
 
@@ -320,7 +323,7 @@ struct PlannerDayCell: View {
                     .font(.system(size: 8))
                     .foregroundStyle(.secondary)
             }
-            .frame(width: 26, alignment: .leading)
+            .frame(width: PlannerMetrics.labelWidth, alignment: .leading)
 
             if reserve > 0 {
                 Color.clear
