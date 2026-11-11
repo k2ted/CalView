@@ -8,6 +8,12 @@
 import SwiftUI
 import EventKit
 
+private enum PlannerMetrics {
+    static let laneWidth: CGFloat = 12
+    static let laneGap: CGFloat = 2
+    static let laneStartX: CGFloat = 32
+}
+
 private func plannerColor(for event: EKEvent) -> Color {
     if let cg = event.calendar?.cgColor {
         return Color(cgColor: cg)
@@ -27,6 +33,21 @@ struct PlannerView: View {
     let months: Int
     let onSelect: (EKEvent) -> Void
     let onShowDay: (Date, [EKEvent]) -> Void
+
+    private struct PlannerBar {
+        let event: EKEvent
+        let startRow: Int
+        let endRow: Int
+        let lane: Int
+        let before: Bool
+        let after: Bool
+    }
+
+    private struct ColumnLayout {
+        var bars: [PlannerBar] = []
+        var laneCount = 0
+        var lanedIDs: Set<ObjectIdentifier> = []
+    }
 
     private var monthStarts: [Date] {
         let cal = Calendar.current
@@ -52,6 +73,73 @@ struct PlannerView: View {
                 day = next
             }
         }
+        return result
+    }
+
+    // Works out which multi-day events become vertical bars in this month, and which lane each sits in.
+    private func makeColumnLayout(monthStart: Date, dayCount: Int, maxLanes: Int) -> ColumnLayout {
+        let cal = Calendar.current
+        var result = ColumnLayout()
+
+        struct Span {
+            let event: EKEvent
+            let startRow: Int
+            let endRow: Int
+            let before: Bool
+            let after: Bool
+        }
+        var spans: [Span] = []
+
+        for event in calendar.visibleEvents {
+            guard let start = event.startDate, let end = event.endDate else { continue }
+            let lastMoment = end > start ? end.addingTimeInterval(-1) : start
+            let firstDay = cal.startOfDay(for: start)
+            let lastDay = cal.startOfDay(for: lastMoment)
+            guard lastDay > firstDay else { continue }   // single-day events stay as chips
+
+            let rawStart = cal.dateComponents([.day], from: monthStart, to: firstDay).day ?? 0
+            let rawEnd = cal.dateComponents([.day], from: monthStart, to: lastDay).day ?? 0
+            if rawEnd < 0 || rawStart > dayCount - 1 { continue }
+
+            spans.append(Span(
+                event: event,
+                startRow: max(rawStart, 0),
+                endRow: min(rawEnd, dayCount - 1),
+                before: rawStart < 0,
+                after: rawEnd > dayCount - 1
+            ))
+        }
+
+        spans.sort {
+            if $0.startRow != $1.startRow { return $0.startRow < $1.startRow }
+            return ($0.endRow - $0.startRow) > ($1.endRow - $1.startRow)
+        }
+
+        var laneEnds: [Int] = []
+        for span in spans {
+            var lane = -1
+            for i in 0..<laneEnds.count where laneEnds[i] < span.startRow {
+                lane = i
+                break
+            }
+            if lane == -1 {
+                if laneEnds.count >= maxLanes { continue }
+                laneEnds.append(span.endRow)
+                lane = laneEnds.count - 1
+            } else {
+                laneEnds[lane] = span.endRow
+            }
+            result.bars.append(PlannerBar(
+                event: span.event,
+                startRow: span.startRow,
+                endRow: span.endRow,
+                lane: lane,
+                before: span.before,
+                after: span.after
+            ))
+            result.lanedIDs.insert(ObjectIdentifier(span.event))
+        }
+        result.laneCount = laneEnds.count
         return result
     }
 
@@ -86,6 +174,11 @@ struct PlannerView: View {
                              rowH: CGFloat, headerH: CGFloat, rowGap: CGFloat) -> some View {
         let cal = Calendar.current
         let dayCount = cal.range(of: .day, in: .month, for: monthStart)?.count ?? 30
+        let layout = makeColumnLayout(monthStart: monthStart, dayCount: dayCount,
+                                      maxLanes: colW > 180 ? 3 : 2)
+        let reserve: CGFloat = layout.laneCount > 0
+            ? CGFloat(layout.laneCount) * (PlannerMetrics.laneWidth + PlannerMetrics.laneGap)
+            : 0
 
         return VStack(spacing: rowGap) {
             Text(monthStart.formatted(.dateTime.month(.abbreviated).year()))
@@ -94,11 +187,16 @@ struct PlannerView: View {
 
             ForEach(0..<31, id: \.self) { i in
                 if i < dayCount, let date = cal.date(byAdding: .day, value: i, to: monthStart) {
+                    let all = plannerSorted(byDay[cal.startOfDay(for: date)] ?? [])
+                    let chips = all.filter { !layout.lanedIDs.contains(ObjectIdentifier($0)) }
+
                     PlannerDayCell(
                         date: date,
-                        events: plannerSorted(byDay[cal.startOfDay(for: date)] ?? []),
+                        chips: chips,
+                        allEvents: all,
                         width: colW,
                         height: rowH,
+                        reserve: reserve,
                         onSelect: onSelect,
                         onShowDay: onShowDay
                     )
@@ -108,14 +206,59 @@ struct PlannerView: View {
             }
         }
         .frame(width: colW)
+        .overlay(alignment: .topLeading) {
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(layout.bars.enumerated()), id: \.offset) { _, bar in
+                    let x = PlannerMetrics.laneStartX
+                        + CGFloat(bar.lane) * (PlannerMetrics.laneWidth + PlannerMetrics.laneGap)
+                    let y = headerH + rowGap + CGFloat(bar.startRow) * (rowH + rowGap) + 1
+
+                    barView(bar, rowH: rowH, rowGap: rowGap)
+                        .offset(x: x, y: y)
+                }
+            }
+        }
+    }
+
+    private func barView(_ bar: PlannerBar, rowH: CGFloat, rowGap: CGFloat) -> some View {
+        let rows = CGFloat(bar.endRow - bar.startRow + 1)
+        let height = max(rows * rowH + (rows - 1) * rowGap - 2, 0)
+        let color = plannerColor(for: bar.event)
+        let r: CGFloat = 4
+        let shape = UnevenRoundedRectangle(
+            topLeadingRadius: bar.before ? 0 : r,
+            bottomLeadingRadius: bar.after ? 0 : r,
+            bottomTrailingRadius: bar.after ? 0 : r,
+            topTrailingRadius: bar.before ? 0 : r
+        )
+
+        return Text(bar.event.title ?? "Untitled")
+            .font(.system(size: 8, weight: .medium))
+            .lineLimit(1)
+            .frame(width: max(height - 6, 0), height: PlannerMetrics.laneWidth, alignment: .leading)
+            .rotationEffect(.degrees(90))
+            .frame(width: PlannerMetrics.laneWidth, height: height)
+            .background(color.opacity(0.4))
+            .overlay(alignment: .top) {
+                if !bar.before {
+                    Rectangle()
+                        .fill(color)
+                        .frame(height: 2)
+                }
+            }
+            .clipShape(shape)
+            .contentShape(shape)
+            .onTapGesture { onSelect(bar.event) }
     }
 }
 
 struct PlannerDayCell: View {
     let date: Date
-    let events: [EKEvent]
+    let chips: [EKEvent]
+    let allEvents: [EKEvent]
     let width: CGFloat
     let height: CGFloat
+    let reserve: CGFloat
     let onSelect: (EKEvent) -> Void
     let onShowDay: (Date, [EKEvent]) -> Void
 
@@ -130,7 +273,7 @@ struct PlannerDayCell: View {
     }
 
     private var maxChips: Int {
-        let eventWidth = width - 36
+        let eventWidth = width - 36 - reserve
         return min(3, max(1, Int(eventWidth / 60)))
     }
 
@@ -160,8 +303,8 @@ struct PlannerDayCell: View {
     }
 
     var body: some View {
-        let shown = Array(events.prefix(maxChips))
-        let overflow = events.count - shown.count
+        let shown = Array(chips.prefix(maxChips))
+        let overflow = chips.count - shown.count
 
         HStack(spacing: 3) {
             HStack(spacing: 1) {
@@ -172,6 +315,11 @@ struct PlannerDayCell: View {
                     .foregroundStyle(.secondary)
             }
             .frame(width: 26, alignment: .leading)
+
+            if reserve > 0 {
+                Color.clear
+                    .frame(width: reserve, height: 1)
+            }
 
             ForEach(Array(shown.enumerated()), id: \.offset) { item in
                 chip(item.element)
@@ -194,6 +342,6 @@ struct PlannerDayCell: View {
                 .stroke(isToday ? Color.red : Color.clear, lineWidth: 1.5)
         )
         .contentShape(RoundedRectangle(cornerRadius: 4))
-        .onTapGesture { onShowDay(date, events) }
+        .onTapGesture { onShowDay(date, allEvents) }
     }
 }
