@@ -11,12 +11,60 @@ import EventKit
 struct SidebarView: View {
     let calendar: CalendarStore
     @Binding var months: Int
+
     @AppStorage("showEventTimes") private var showTimes = false
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("viewMode") private var viewMode = "calendar"
+    @AppStorage("collapsedAccounts") private var collapsedRaw = ""
+
+    private struct AccountGroup: Identifiable {
+        let name: String
+        let calendars: [EKCalendar]
+        var id: String { name }
+    }
+
+    private var groups: [AccountGroup] {
+        let dict = Dictionary(grouping: calendar.calendars) { $0.source?.title ?? "Other" }
+        return dict.keys.sorted().map { name in
+            AccountGroup(
+                name: name,
+                calendars: (dict[name] ?? []).sorted { $0.title < $1.title }
+            )
+        }
+    }
+
+    private var collapsedSet: Set<String> {
+        Set(collapsedRaw.split(separator: "|").map(String.init))
+    }
+
+    private func expandedBinding(_ name: String) -> Binding<Bool> {
+        Binding(
+            get: { !collapsedSet.contains(name) },
+            set: { isOpen in
+                var set = collapsedSet
+                if isOpen { set.remove(name) } else { set.insert(name) }
+                collapsedRaw = set.sorted().joined(separator: "|")
+            }
+        )
+    }
+
+    private func visibleCount(_ group: AccountGroup) -> Int {
+        group.calendars.filter { calendar.isVisible($0) }.count
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("View")
+                    .font(.headline)
+                Picker("View", selection: $viewMode) {
+                    Text("Calendar").tag("calendar")
+                    Text("Planner").tag("planner")
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
+
             VStack(alignment: .leading, spacing: 10) {
                 Text("Range (months)")
                     .font(.headline)
@@ -28,18 +76,8 @@ struct SidebarView: View {
                 .pickerStyle(.segmented)
                 .labelsHidden()
             }
-            
+
             VStack(alignment: .leading, spacing: 10) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("View")
-                        .font(.headline)
-                    Picker("View", selection: $viewMode) {
-                        Text("Calendar").tag("calendar")
-                        Text("Planner").tag("planner")
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                }
                 Text("Display")
                     .font(.headline)
                 Toggle("Show event times", isOn: $showTimes)
@@ -65,18 +103,36 @@ struct SidebarView: View {
                 .font(.callout)
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(calendar.calendars, id: \.calendarIdentifier) { cal in
-                            Toggle(isOn: Binding(
-                                get: { calendar.isVisible(cal) },
-                                set: { _ in calendar.toggle(cal) }
-                            )) {
-                                HStack(spacing: 8) {
-                                    Circle()
-                                        .fill(Color(cgColor: cal.cgColor))
-                                        .frame(width: 10, height: 10)
-                                    Text(cal.title)
-                                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(groups) { group in
+                            DisclosureGroup(isExpanded: expandedBinding(group.name)) {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    ForEach(group.calendars, id: \.calendarIdentifier) { cal in
+                                        Toggle(isOn: Binding(
+                                            get: { calendar.isVisible(cal) },
+                                            set: { _ in calendar.toggle(cal) }
+                                        )) {
+                                            HStack(spacing: 8) {
+                                                Circle()
+                                                    .fill(Color(cgColor: cal.cgColor))
+                                                    .frame(width: 10, height: 10)
+                                                Text(cal.title)
+                                                    .lineLimit(1)
+                                            }
+                                        }
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.top, 8)
+                                .padding(.leading, 6)
+                            } label: {
+                                HStack {
+                                    Text(group.name)
+                                        .font(.subheadline.bold())
+                                    Spacer()
+                                    Text("\(visibleCount(group))/\(group.calendars.count)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                         }

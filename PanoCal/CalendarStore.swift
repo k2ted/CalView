@@ -64,7 +64,11 @@ class CalendarStore {
                 return
             }
 
-            calendars = store.calendars(for: .event).sorted { $0.title < $1.title }
+            calendars = store.calendars(for: .event).sorted {
+                let a = $0.source?.title ?? ""
+                let b = $1.source?.title ?? ""
+                return a == b ? $0.title < $1.title : a < b
+            }
 
             let cal = Calendar.current
             let monthStart = cal.dateInterval(of: .month, for: Date())!.start
