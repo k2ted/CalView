@@ -272,6 +272,7 @@ struct PlannerDayCell: View {
     let onShowDay: (Date, [EKEvent]) -> Void
 
     @Environment(\.colorScheme) private var colorScheme
+    @AppStorage("showEventTimes") private var showTimes = false
 
     private var isToday: Bool {
         Calendar.current.isDateInToday(date)
@@ -291,19 +292,31 @@ struct PlannerDayCell: View {
     private var maxChips: Int {
         let eventWidth = width - 30 - reserve
         let cap = width > 500 ? 6 : 3
-        return min(cap, max(1, Int(eventWidth / 60)))
+        let perChip: CGFloat = showTimes ? 85 : 60
+        return min(cap, max(1, Int(eventWidth / perChip)))
     }
-
+    
     private var cellBackground: Color {
         if isHighlighted { return Color.accentColor.opacity(0.25) }
         if isToday { return Color.red.opacity(0.12) }
         if isWeekend { return Color.gray.opacity(colorScheme == .dark ? 0.30 : 0.20) }
         return Color.gray.opacity(colorScheme == .dark ? 0.14 : 0.07)
     }
+    
+    private func label(for event: EKEvent) -> String {
+        let title = event.title ?? "Untitled"
+        guard showTimes,
+              !event.isAllDay,
+              Calendar.current.isDate(event.startDate, inSameDayAs: date) else {
+            return title
+        }
+        let time = event.startDate.formatted(.dateTime.hour(.defaultDigits(amPM: .omitted)).minute())
+        return "\(time) \(title)"
+    }
 
     private func chip(_ event: EKEvent) -> some View {
         let color = plannerColor(for: event)
-        return Text(event.title ?? "Untitled")
+        return Text(label(for: event))
             .font(.system(size: 9))
             .lineLimit(1)
             .padding(.leading, 5)
