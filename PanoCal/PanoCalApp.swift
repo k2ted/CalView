@@ -18,12 +18,23 @@ struct PanoCalApp: App {
         }
         .commands {
             CommandMenu("Display") {
-                Button("3 Months") { months = 3 }
-                    .keyboardShortcut("1", modifiers: .command)
-                Button("6 Months") { months = 6 }
-                    .keyboardShortcut("2", modifiers: .command)
-                Button("12 Months") { months = 12 }
-                    .keyboardShortcut("3", modifiers: .command)
+                if oneMonthEnabled {
+                    Button("1 Month") { months = 1 }
+                        .keyboardShortcut("1", modifiers: .command)
+                    Button("3 Months") { months = 3 }
+                        .keyboardShortcut("2", modifiers: .command)
+                    Button("6 Months") { months = 6 }
+                        .keyboardShortcut("3", modifiers: .command)
+                    Button("12 Months") { months = 12 }
+                        .keyboardShortcut("4", modifiers: .command)
+                } else {
+                    Button("3 Months") { months = 3 }
+                        .keyboardShortcut("1", modifiers: .command)
+                    Button("6 Months") { months = 6 }
+                        .keyboardShortcut("2", modifiers: .command)
+                    Button("12 Months") { months = 12 }
+                        .keyboardShortcut("3", modifiers: .command)
+                }
 
                 Divider()
 

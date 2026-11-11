@@ -8,6 +8,9 @@
 import SwiftUI
 import EventKit
 
+// Set to true to bring back the single-month range option.
+let oneMonthEnabled = false
+
 struct SidebarView: View {
     let calendar: CalendarStore
     @Binding var months: Int
@@ -108,6 +111,9 @@ struct SidebarView: View {
                 Text("Range (months)")
                     .font(.headline)
                 Picker("Range", selection: $months) {
+                    if oneMonthEnabled {
+                        Text("1").tag(1)
+                    }
                     Text("3").tag(3)
                     Text("6").tag(6)
                     Text("12").tag(12)

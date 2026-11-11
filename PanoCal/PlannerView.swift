@@ -183,7 +183,7 @@ struct PlannerView: View {
         let cal = Calendar.current
         let dayCount = cal.range(of: .day, in: .month, for: monthStart)?.count ?? 30
         let layout = makeColumnLayout(events: events, monthStart: monthStart, dayCount: dayCount,
-                                      maxLanes: colW > 180 ? 3 : 2)
+                                      maxLanes: colW > 500 ? 5 : (colW > 180 ? 3 : 2))
 
         return VStack(spacing: rowGap) {
             Text(monthStart.formatted(.dateTime.month(.abbreviated).year()))
@@ -283,7 +283,8 @@ struct PlannerDayCell: View {
 
     private var maxChips: Int {
         let eventWidth = width - 30 - reserve
-        return min(3, max(1, Int(eventWidth / 60)))
+        let cap = width > 500 ? 6 : 3
+        return min(cap, max(1, Int(eventWidth / 60)))
     }
 
     private var cellBackground: Color {

@@ -29,6 +29,9 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: showSidebar)
         .preferredColorScheme(preferredScheme)
+        .onAppear {
+            if months == 1 && !oneMonthEnabled { months = 3 }
+        }
         .task(id: months) { await calendar.load(months: months) }
         .task { await calendar.startObservingChanges() }
         .sheet(item: $selected) { item in
