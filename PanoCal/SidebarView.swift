@@ -23,6 +23,10 @@ struct SidebarView: View {
         var id: String { name }
     }
 
+    private enum GroupState {
+        case none, some, all
+    }
+
     private var groups: [AccountGroup] {
         let dict = Dictionary(grouping: calendar.calendars) { $0.source?.title ?? "Other" }
         return dict.keys.sorted().map { name in
@@ -50,6 +54,41 @@ struct SidebarView: View {
 
     private func visibleCount(_ group: AccountGroup) -> Int {
         group.calendars.filter { calendar.isVisible($0) }.count
+    }
+
+    private func groupState(_ group: AccountGroup) -> GroupState {
+        let n = visibleCount(group)
+        if n == 0 { return .none }
+        return n == group.calendars.count ? .all : .some
+    }
+
+    private func setGroup(_ group: AccountGroup, visible: Bool) {
+        for cal in group.calendars where calendar.isVisible(cal) != visible {
+            calendar.toggle(cal)
+        }
+    }
+
+    private func groupCheckbox(_ group: AccountGroup) -> some View {
+        let state = groupState(group)
+        return Button {
+            setGroup(group, visible: state != .all)
+        } label: {
+            ZStack {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(state == .none ? Color.clear : Color.accentColor.opacity(state == .all ? 1 : 0.45))
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(state == .none ? Color.secondary.opacity(0.6) : Color.accentColor, lineWidth: 1)
+                if state == .all {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+            }
+            .frame(width: 16, height: 16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Show or hide all calendars in \(group.name)")
     }
 
     var body: some View {
@@ -103,10 +142,10 @@ struct SidebarView: View {
                 .font(.callout)
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 8) {
                         ForEach(groups) { group in
                             DisclosureGroup(isExpanded: expandedBinding(group.name)) {
-                                VStack(alignment: .leading, spacing: 12) {
+                                VStack(alignment: .leading, spacing: 10) {
                                     ForEach(group.calendars, id: \.calendarIdentifier) { cal in
                                         Toggle(isOn: Binding(
                                             get: { calendar.isVisible(cal) },
@@ -124,9 +163,10 @@ struct SidebarView: View {
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.top, 8)
-                                .padding(.leading, 6)
+                                .padding(.leading, 24)
                             } label: {
-                                HStack {
+                                HStack(spacing: 8) {
+                                    groupCheckbox(group)
                                     Text(group.name)
                                         .font(.subheadline.bold())
                                     Spacer()
