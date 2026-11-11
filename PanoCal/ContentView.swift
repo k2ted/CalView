@@ -100,6 +100,7 @@ struct ContentView: View {
                         onSelect: { selected = EventItem(event: $0) },
                         onShowDay: { day, events in selectedDay = DayItem(day: day, events: events) }
                     )
+                    .id(months)
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 4) {

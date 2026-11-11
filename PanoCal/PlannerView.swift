@@ -46,7 +46,7 @@ struct PlannerView: View {
     private struct ColumnLayout {
         var bars: [PlannerBar] = []
         var laneCount = 0
-        var lanedIDs: Set<ObjectIdentifier> = []
+        var lanedIndexes: Set<Int> = []
     }
 
     private var monthStarts: [Date] {
@@ -55,20 +55,20 @@ struct PlannerView: View {
         return (0..<months).compactMap { cal.date(byAdding: .month, value: $0, to: first) }
     }
 
-    // Groups the events by the day(s) they fall on, so each cell can look its events up quickly.
-    private func eventsByDay(rangeStart: Date, rangeEnd: Date) -> [Date: [EKEvent]] {
+    // Groups the events by the day(s) they fall on. Stores positions in the events array, not the events themselves.
+    private func eventsByDay(events: [EKEvent], rangeStart: Date, rangeEnd: Date) -> [Date: [Int]] {
         let cal = Calendar.current
-        var result: [Date: [EKEvent]] = [:]
+        var result: [Date: [Int]] = [:]
         guard let lastAllowed = cal.date(byAdding: .day, value: -1, to: rangeEnd) else { return result }
 
-        for event in calendar.visibleEvents {
+        for (index, event) in events.enumerated() {
             guard let start = event.startDate, let end = event.endDate else { continue }
             let lastMoment = end > start ? end.addingTimeInterval(-1) : start
             var day = max(cal.startOfDay(for: start), rangeStart)
             let lastDay = min(cal.startOfDay(for: lastMoment), lastAllowed)
 
             while day <= lastDay {
-                result[day, default: []].append(event)
+                result[day, default: []].append(index)
                 guard let next = cal.date(byAdding: .day, value: 1, to: day) else { break }
                 day = next
             }
@@ -77,11 +77,12 @@ struct PlannerView: View {
     }
 
     // Works out which multi-day events become vertical bars in this month, and which lane each sits in.
-    private func makeColumnLayout(monthStart: Date, dayCount: Int, maxLanes: Int) -> ColumnLayout {
+    private func makeColumnLayout(events: [EKEvent], monthStart: Date, dayCount: Int, maxLanes: Int) -> ColumnLayout {
         let cal = Calendar.current
         var result = ColumnLayout()
 
         struct Span {
+            let index: Int
             let event: EKEvent
             let startRow: Int
             let endRow: Int
@@ -90,7 +91,7 @@ struct PlannerView: View {
         }
         var spans: [Span] = []
 
-        for event in calendar.visibleEvents {
+        for (index, event) in events.enumerated() {
             guard let start = event.startDate, let end = event.endDate else { continue }
             let lastMoment = end > start ? end.addingTimeInterval(-1) : start
             let firstDay = cal.startOfDay(for: start)
@@ -102,6 +103,7 @@ struct PlannerView: View {
             if rawEnd < 0 || rawStart > dayCount - 1 { continue }
 
             spans.append(Span(
+                index: index,
                 event: event,
                 startRow: max(rawStart, 0),
                 endRow: min(rawEnd, dayCount - 1),
@@ -137,17 +139,18 @@ struct PlannerView: View {
                 before: span.before,
                 after: span.after
             ))
-            result.lanedIDs.insert(ObjectIdentifier(span.event))
+            result.lanedIndexes.insert(span.index)
         }
         result.laneCount = laneEnds.count
         return result
     }
 
     var body: some View {
+        let events = calendar.visibleEvents      // one snapshot, used for everything below
         let starts = monthStarts
         let rangeStart = starts.first ?? Date()
         let rangeEnd = Calendar.current.date(byAdding: .month, value: months, to: rangeStart) ?? rangeStart
-        let byDay = eventsByDay(rangeStart: rangeStart, rangeEnd: rangeEnd)
+        let byDay = eventsByDay(events: events, rangeStart: rangeStart, rangeEnd: rangeEnd)
 
         GeometryReader { geo in
             let spacing: CGFloat = 4
@@ -161,8 +164,8 @@ struct PlannerView: View {
             ScrollView(.vertical) {
                 HStack(alignment: .top, spacing: spacing) {
                     ForEach(starts, id: \.self) { monthStart in
-                        monthColumn(monthStart, byDay: byDay, colW: colW, rowH: rowH,
-                                    headerH: headerH, rowGap: rowGap)
+                        monthColumn(monthStart, events: events, byDay: byDay, colW: colW,
+                                    rowH: rowH, headerH: headerH, rowGap: rowGap)
                     }
                 }
                 .padding(outerPad)
@@ -170,11 +173,11 @@ struct PlannerView: View {
         }
     }
 
-    private func monthColumn(_ monthStart: Date, byDay: [Date: [EKEvent]], colW: CGFloat,
-                             rowH: CGFloat, headerH: CGFloat, rowGap: CGFloat) -> some View {
+    private func monthColumn(_ monthStart: Date, events: [EKEvent], byDay: [Date: [Int]],
+                             colW: CGFloat, rowH: CGFloat, headerH: CGFloat, rowGap: CGFloat) -> some View {
         let cal = Calendar.current
         let dayCount = cal.range(of: .day, in: .month, for: monthStart)?.count ?? 30
-        let layout = makeColumnLayout(monthStart: monthStart, dayCount: dayCount,
+        let layout = makeColumnLayout(events: events, monthStart: monthStart, dayCount: dayCount,
                                       maxLanes: colW > 180 ? 3 : 2)
         let reserve: CGFloat = layout.laneCount > 0
             ? CGFloat(layout.laneCount) * (PlannerMetrics.laneWidth + PlannerMetrics.laneGap)
@@ -187,8 +190,11 @@ struct PlannerView: View {
 
             ForEach(0..<31, id: \.self) { i in
                 if i < dayCount, let date = cal.date(byAdding: .day, value: i, to: monthStart) {
-                    let all = plannerSorted(byDay[cal.startOfDay(for: date)] ?? [])
-                    let chips = all.filter { !layout.lanedIDs.contains(ObjectIdentifier($0)) }
+                    let indexes = byDay[cal.startOfDay(for: date)] ?? []
+                    let all = plannerSorted(indexes.map { events[$0] })
+                    let chips = plannerSorted(
+                        indexes.filter { !layout.lanedIndexes.contains($0) }.map { events[$0] }
+                    )
 
                     PlannerDayCell(
                         date: date,
