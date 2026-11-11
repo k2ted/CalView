@@ -13,6 +13,7 @@ struct SidebarView: View {
     @Binding var months: Int
     @AppStorage("showEventTimes") private var showTimes = false
     @AppStorage("appearance") private var appearance = "system"
+    @AppStorage("viewMode") private var viewMode = "calendar"
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -29,6 +30,16 @@ struct SidebarView: View {
             }
             
             VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("View")
+                        .font(.headline)
+                    Picker("View", selection: $viewMode) {
+                        Text("Calendar").tag("calendar")
+                        Text("Planner").tag("planner")
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                }
                 Text("Display")
                     .font(.headline)
                 Toggle("Show event times", isOn: $showTimes)

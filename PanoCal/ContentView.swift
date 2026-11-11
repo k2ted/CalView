@@ -11,16 +11,17 @@ import EventKit
 struct ContentView: View {
     @State private var calendar = CalendarStore()
     @AppStorage("selectedMonths") private var months = 3
+    @AppStorage("appearance") private var appearance = "system"
+    @AppStorage("viewMode") private var viewMode = "calendar"
     @State private var showSidebar = false
     @State private var selected: EventItem?
     @State private var selectedDay: DayItem?
-    @AppStorage("appearance") private var appearance = "system"
 
     var body: some View {
         HStack(spacing: 0) {
             if showSidebar {
                 SidebarView(calendar: calendar, months: $months)
-                    .frame(width: 260)
+                    .frame(width: 280)
                     .transition(.move(edge: .leading))
                 Divider()
             }
@@ -39,19 +40,19 @@ struct ContentView: View {
                 .preferredColorScheme(preferredScheme)
         }
     }
-    
-    private var monthStarts: [Date] {
-        let cal = Calendar.current
-        guard let first = cal.dateInterval(of: .month, for: Date())?.start else { return [] }
-        return (0..<months).compactMap { cal.date(byAdding: .month, value: $0, to: first) }
-    }
-    
+
     private var preferredScheme: ColorScheme? {
         switch appearance {
         case "light": return .light
         case "dark": return .dark
         default: return nil
         }
+    }
+
+    private var monthStarts: [Date] {
+        let cal = Calendar.current
+        guard let first = cal.dateInterval(of: .month, for: Date())?.start else { return [] }
+        return (0..<months).compactMap { cal.date(byAdding: .month, value: $0, to: first) }
     }
 
     private var mainContent: some View {
@@ -69,19 +70,21 @@ struct ContentView: View {
 
                     Spacer()
 
-                    Menu("Jump to") {
-                        ForEach(monthStarts, id: \.self) { month in
-                            Button(month.formatted(.dateTime.month(.wide).year())) {
-                                scrollToMonth(month, proxy)
+                    if viewMode == "calendar" {
+                        Menu("Jump to") {
+                            ForEach(monthStarts, id: \.self) { month in
+                                Button(month.formatted(.dateTime.month(.wide).year())) {
+                                    scrollToMonth(month, proxy)
+                                }
                             }
                         }
-                    }
-                    .fixedSize()
+                        .fixedSize()
 
-                    Button("Today") {
-                        jumpToToday(proxy)
+                        Button("Today") {
+                            jumpToToday(proxy)
+                        }
+                        .keyboardShortcut("t", modifiers: .command)
                     }
-                    .keyboardShortcut("t", modifiers: .command)
                 }
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.roundedRectangle)
@@ -90,6 +93,13 @@ struct ContentView: View {
                 if calendar.accessDenied {
                     Text("Calendar access was denied. You can allow it in System Settings > Privacy & Security > Calendars.")
                         .padding()
+                } else if viewMode == "planner" {
+                    PlannerView(
+                        calendar: calendar,
+                        months: months,
+                        onSelect: { selected = EventItem(event: $0) },
+                        onShowDay: { day, events in selectedDay = DayItem(day: day, events: events) }
+                    )
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 4) {
