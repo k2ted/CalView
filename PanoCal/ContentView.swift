@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var showSidebar = false
     @State private var selected: EventItem?
     @State private var selectedDay: DayItem?
+    @AppStorage("appearance") private var appearance = "system"
 
     var body: some View {
         HStack(spacing: 0) {
@@ -26,13 +27,16 @@ struct ContentView: View {
             mainContent
         }
         .animation(.easeInOut(duration: 0.2), value: showSidebar)
+        .preferredColorScheme(preferredScheme)
         .task(id: months) { await calendar.load(months: months) }
         .task { await calendar.startObservingChanges() }
         .sheet(item: $selected) { item in
             EventDetailView(event: item.event)
+                .preferredColorScheme(preferredScheme)
         }
         .sheet(item: $selectedDay) { item in
             DayListView(day: item.day, events: item.events)
+                .preferredColorScheme(preferredScheme)
         }
     }
     
@@ -40,6 +44,14 @@ struct ContentView: View {
         let cal = Calendar.current
         guard let first = cal.dateInterval(of: .month, for: Date())?.start else { return [] }
         return (0..<months).compactMap { cal.date(byAdding: .month, value: $0, to: first) }
+    }
+    
+    private var preferredScheme: ColorScheme? {
+        switch appearance {
+        case "light": return .light
+        case "dark": return .dark
+        default: return nil
+        }
     }
 
     private var mainContent: some View {
