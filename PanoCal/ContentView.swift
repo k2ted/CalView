@@ -16,6 +16,9 @@ struct ContentView: View {
     @State private var showSidebar = false
     @State private var selected: EventItem?
     @State private var selectedDay: DayItem?
+    @State private var showSearch = false
+    @State private var highlightedDays: ClosedRange<Date>?
+    @State private var highlightToken = UUID()
 
     var body: some View {
         HStack(spacing: 0) {
@@ -29,6 +32,12 @@ struct ContentView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: showSidebar)
         .preferredColorScheme(preferredScheme)
+        .environment(\.highlightedDays, highlightedDays)
+        .onChange(of: selected?.id) { _, newValue in
+            if newValue == nil && highlightedDays != nil {
+                clearHighlightSoon()
+            }
+        }
         .onAppear {
             if months == 1 && !oneMonthEnabled { months = 3 }
         }
@@ -72,6 +81,21 @@ struct ContentView: View {
                     .keyboardShortcut("s", modifiers: [.command, .control])
 
                     Spacer()
+
+                    Button {
+                        showSearch.toggle()
+                    } label: {
+                        Label("Search", systemImage: "magnifyingglass")
+                            .labelStyle(.iconOnly)
+                    }
+                    .keyboardShortcut("f", modifiers: .command)
+                    .help("Search events")
+                    .popover(isPresented: $showSearch) {
+                        SearchView(events: calendar.visibleEvents) { event in
+                            showSearch = false
+                            pick(event, proxy)
+                        }
+                    }
 
                     if viewMode == "calendar" {
                         Menu("Jump to") {
@@ -128,6 +152,44 @@ struct ContentView: View {
                         .padding()
                     }
                 }
+            }
+        }
+    }
+    
+    private func pick(_ event: EKEvent, _ proxy: ScrollViewProxy) {
+        if let start = event.startDate {
+            let cal = Calendar.current
+            let end = event.endDate ?? start
+            let lastMoment = end > start ? end.addingTimeInterval(-1) : start
+            let firstDay = cal.startOfDay(for: start)
+            let lastDay = max(cal.startOfDay(for: lastMoment), firstDay)
+
+            highlightedDays = firstDay...lastDay
+            highlightToken = UUID()
+
+            if viewMode == "calendar" {
+                if let week = calendar.weekStarts.first(where: {
+                    cal.isDate(start, equalTo: $0, toGranularity: .weekOfYear)
+                }) {
+                    withAnimation {
+                        proxy.scrollTo(week, anchor: .top)
+                    }
+                }
+            }
+        }
+        // A short pause lets the search panel close before the details panel opens.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(250))
+            selected = EventItem(event: event)
+        }
+    }
+
+    private func clearHighlightSoon() {
+        let token = highlightToken
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(4))
+            if token == highlightToken {
+                withAnimation { highlightedDays = nil }
             }
         }
     }

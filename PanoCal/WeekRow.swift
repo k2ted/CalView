@@ -219,6 +219,13 @@ struct DayCell: View {
     private var isToday: Bool {
         Calendar.current.isDateInToday(day)
     }
+    
+    @Environment(\.highlightedDays) private var highlightedDays
+
+    private var isHighlighted: Bool {
+        guard let highlightedDays else { return false }
+        return highlightedDays.contains(Calendar.current.startOfDay(for: day))
+    }
 
     private var isEvenMonth: Bool {
         Calendar.current.component(.month, from: day) % 2 == 0
@@ -288,15 +295,18 @@ struct DayCell: View {
         .frame(maxWidth: .infinity, minHeight: 80, alignment: .topLeading)
         .padding(WeekMetrics.cellPadding)
         .background(
-            isToday
-                ? Color.red.opacity(0.12)
-                : Color.gray.opacity(isEvenMonth ? 0.08 : (colorScheme == .dark ? 0.32 : 0.22))
+            isHighlighted
+                ? Color.accentColor.opacity(0.25)
+                : (isToday
+                    ? Color.red.opacity(0.12)
+                    : Color.gray.opacity(isEvenMonth ? 0.08 : (colorScheme == .dark ? 0.32 : 0.22)))
         )
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .overlay(
             RoundedRectangle(cornerRadius: 6)
-                .stroke(isToday ? Color.red : Color.clear, lineWidth: 2)
+                .stroke(isHighlighted ? Color.accentColor : (isToday ? Color.red : Color.clear), lineWidth: 2)
         )
+        .animation(.easeInOut(duration: 0.25), value: isHighlighted)
         .contentShape(RoundedRectangle(cornerRadius: 6))
         .onTapGesture { onShowDay(day, allEvents) }
     }

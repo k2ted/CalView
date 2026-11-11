@@ -280,6 +280,13 @@ struct PlannerDayCell: View {
     private var isWeekend: Bool {
         Calendar.current.isDateInWeekend(date)
     }
+    
+    @Environment(\.highlightedDays) private var highlightedDays
+
+    private var isHighlighted: Bool {
+        guard let highlightedDays else { return false }
+        return highlightedDays.contains(Calendar.current.startOfDay(for: date))
+    }
 
     private var maxChips: Int {
         let eventWidth = width - 30 - reserve
@@ -288,6 +295,7 @@ struct PlannerDayCell: View {
     }
 
     private var cellBackground: Color {
+        if isHighlighted { return Color.accentColor.opacity(0.25) }
         if isToday { return Color.red.opacity(0.12) }
         if isWeekend { return Color.gray.opacity(colorScheme == .dark ? 0.30 : 0.20) }
         return Color.gray.opacity(colorScheme == .dark ? 0.14 : 0.07)
@@ -349,8 +357,9 @@ struct PlannerDayCell: View {
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .overlay(
             RoundedRectangle(cornerRadius: 4)
-                .stroke(isToday ? Color.red : Color.clear, lineWidth: 1.5)
+                .stroke(isHighlighted ? Color.accentColor : (isToday ? Color.red : Color.clear), lineWidth: 2)
         )
+        .animation(.easeInOut(duration: 0.25), value: isHighlighted)
         .contentShape(RoundedRectangle(cornerRadius: 4))
         .onTapGesture { onShowDay(date, allEvents) }
     }
