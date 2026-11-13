@@ -12,7 +12,7 @@ struct ContentView: View {
     @State private var calendar = CalendarStore()
     @AppStorage("selectedMonths") private var months = 3
     @AppStorage("appearance") private var appearance = "system"
-    @AppStorage("viewMode") private var viewMode = "calendar"
+    @AppStorage("viewMode") private var viewMode = "overview"
     @State private var showSidebar = false
     @State private var selected: EventItem?
     @State private var selectedDay: DayItem?
@@ -118,8 +118,16 @@ struct ContentView: View {
                 .padding()
 
                 if calendar.accessDenied {
-                    Text("Calendar access was denied. You can allow it in System Settings > Privacy & Security > Calendars.")
+                    Text("Calendar access was denied. ...")
                         .padding()
+                } else if viewMode == "overview" {
+                    OverviewView(
+                        calendar: calendar,
+                        months: months,
+                        onSelect: { selected = EventItem(event: $0) },
+                        onShowDay: { day, events in selectedDay = DayItem(day: day, events: events) }
+                    )
+                    .id(months)
                 } else if viewMode == "planner" {
                     PlannerView(
                         calendar: calendar,

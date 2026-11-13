@@ -100,8 +100,9 @@ struct SidebarView: View {
                 Text("View")
                     .font(.headline)
                 Picker("View", selection: $viewMode) {
-                    Text("Calendar").tag("calendar")
+                    Text("Overview").tag("overview")
                     Text("Planner").tag("planner")
+                    Text("Calendar").tag("calendar")
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
