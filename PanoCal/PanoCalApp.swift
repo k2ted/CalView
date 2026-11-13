@@ -9,7 +9,7 @@ import SwiftUI
 
 @main
 struct PanoCalApp: App {
-    @AppStorage("selectedMonths") private var months = 3
+    @AppStorage("selectedMonths") private var months = 12
     @AppStorage("showEventTimes") private var showTimes = false
 
     var body: some Scene {

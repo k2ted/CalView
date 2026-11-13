@@ -10,7 +10,7 @@ import EventKit
 
 struct ContentView: View {
     @State private var calendar = CalendarStore()
-    @AppStorage("selectedMonths") private var months = 3
+    @AppStorage("selectedMonths") private var months = 12
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("viewMode") private var viewMode = "overview"
     @State private var showSidebar = false
