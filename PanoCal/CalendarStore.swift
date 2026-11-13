@@ -17,6 +17,7 @@ class CalendarStore {
     var weekStarts: [Date] = []
     var accessDenied = false
     @ObservationIgnored private var currentMonths = 3
+    @ObservationIgnored private var currentStart = Date()
 
     var hiddenIDs: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "hiddenCalendars") ?? []) {
         didSet {
@@ -39,7 +40,7 @@ class CalendarStore {
             hiddenIDs.insert(calendar.calendarIdentifier)
         }
     }
-    
+
     func showAll() {
         hiddenIDs = []
     }
@@ -47,15 +48,16 @@ class CalendarStore {
     func hideAll() {
         hiddenIDs = Set(calendars.map { $0.calendarIdentifier })
     }
-    
+
     func startObservingChanges() async {
         for await _ in NotificationCenter.default.notifications(named: .EKEventStoreChanged) {
             store.refreshSourcesIfNecessary()
-            await load(months: currentMonths)
+            await load(start: currentStart, months: currentMonths)
         }
     }
 
-    func load(months: Int) async {
+    func load(start: Date, months: Int) async {
+        currentStart = start
         currentMonths = months
         do {
             let granted = try await store.requestFullAccessToEvents()
@@ -63,6 +65,7 @@ class CalendarStore {
                 accessDenied = true
                 return
             }
+            if Task.isCancelled { return }
 
             calendars = store.calendars(for: .event).sorted {
                 let a = $0.source?.title ?? ""
@@ -71,18 +74,19 @@ class CalendarStore {
             }
 
             let cal = Calendar.current
-            let monthStart = cal.dateInterval(of: .month, for: Date())!.start
-            let start = cal.dateInterval(of: .weekOfYear, for: monthStart)!.start
-            let end = cal.date(byAdding: .month, value: months, to: monthStart)!
+            let monthStart = cal.dateInterval(of: .month, for: start)?.start ?? start
+            let firstWeek = cal.dateInterval(of: .weekOfYear, for: monthStart)?.start ?? monthStart
+            let end = cal.date(byAdding: .month, value: months, to: monthStart) ?? monthStart
 
-            let predicate = store.predicateForEvents(withStart: start, end: end, calendars: nil)
+            let predicate = store.predicateForEvents(withStart: firstWeek, end: end, calendars: nil)
             events = store.events(matching: predicate).sorted { $0.startDate < $1.startDate }
 
             var weeks: [Date] = []
-            var current = start
+            var current = firstWeek
             while current < end {
                 weeks.append(current)
-                current = cal.date(byAdding: .weekOfYear, value: 1, to: current)!
+                guard let next = cal.date(byAdding: .weekOfYear, value: 1, to: current) else { break }
+                current = next
             }
             weekStarts = weeks
         } catch {

@@ -32,6 +32,7 @@ private func plannerSorted(_ list: [EKEvent]) -> [EKEvent] {
 struct PlannerView: View {
     let calendar: CalendarStore
     let months: Int
+    let startMonth: Date
     let onSelect: (EKEvent) -> Void
     let onShowDay: (Date, [EKEvent]) -> Void
 
@@ -53,7 +54,7 @@ struct PlannerView: View {
 
     private var monthStarts: [Date] {
         let cal = Calendar.current
-        guard let first = cal.dateInterval(of: .month, for: Date())?.start else { return [] }
+        let first = cal.dateInterval(of: .month, for: startMonth)?.start ?? startMonth
         return (0..<months).compactMap { cal.date(byAdding: .month, value: $0, to: first) }
     }
 
