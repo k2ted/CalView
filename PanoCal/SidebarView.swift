@@ -9,7 +9,7 @@ import SwiftUI
 import EventKit
 
 // Set to true to bring back the single-month range option.
-let oneMonthEnabled = false
+let oneMonthEnabled = true
 
 struct SidebarView: View {
     let calendar: CalendarStore

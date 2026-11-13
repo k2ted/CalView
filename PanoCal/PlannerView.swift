@@ -11,8 +11,8 @@ import EventKit
 private enum PlannerMetrics {
     static let laneWidth: CGFloat = 12
     static let laneGap: CGFloat = 2
-    static let labelWidth: CGFloat = 20
-    static let laneStartX: CGFloat = 26    // cell padding 3 + label 20 + spacing 3
+    static let labelWidth: CGFloat = 25
+    static let laneStartX: CGFloat = 31    // cell padding 3 + label 25 + spacing 3
 }
 
 private func plannerColor(for event: EKEvent) -> Color {
@@ -290,7 +290,7 @@ struct PlannerDayCell: View {
     }
 
     private var maxChips: Int {
-        let eventWidth = width - 30 - reserve
+        let eventWidth = width - 35 - reserve
         let cap = width > 500 ? 6 : 3
         let perChip: CGFloat = showTimes ? 85 : 60
         return min(cap, max(1, Int(eventWidth / perChip)))
@@ -321,7 +321,7 @@ struct PlannerDayCell: View {
             .lineLimit(1)
             .padding(.leading, 5)
             .padding(.trailing, 2)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: width > 300 ? CGFloat(180) : CGFloat.infinity, alignment: .leading)
             .frame(height: min(height - 6, 18))
             .background(color.opacity(0.3))
             .overlay(alignment: .leading) {
@@ -341,10 +341,13 @@ struct PlannerDayCell: View {
             HStack(spacing: 1) {
                 Text("\(Calendar.current.component(.day, from: date))")
                     .font(.system(size: 10, weight: .bold))
+                    .fixedSize()
                 Text(date.formatted(.dateTime.weekday(.narrow)))
                     .font(.system(size: 8))
                     .foregroundStyle(.secondary)
+                    .fixedSize()
             }
+            .frame(width: PlannerMetrics.labelWidth, alignment: .leading)
             .frame(width: PlannerMetrics.labelWidth, alignment: .leading)
 
             if reserve > 0 {
