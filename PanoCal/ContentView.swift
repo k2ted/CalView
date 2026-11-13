@@ -68,10 +68,13 @@ struct ContentView: View {
             mainContent
         }
         .animation(.easeInOut(duration: 0.2), value: showSidebar)
-        .preferredColorScheme(preferredScheme)
         .environment(\.highlightedDays, highlightedDays)
         .onAppear {
+            AppearanceSetting.apply(appearance)
             if months == 1 && !oneMonthEnabled { months = 3 }
+        }
+        .onChange(of: appearance) { _, newValue in
+            AppearanceSetting.apply(newValue)
         }
         .onChange(of: selected?.id) { _, newValue in
             if newValue == nil && highlightedDays != nil {
@@ -82,19 +85,9 @@ struct ContentView: View {
         .task { await calendar.startObservingChanges() }
         .sheet(item: $selected) { item in
             EventDetailView(event: item.event)
-                .preferredColorScheme(preferredScheme)
         }
         .sheet(item: $selectedDay) { item in
             DayListView(day: item.day, events: item.events)
-                .preferredColorScheme(preferredScheme)
-        }
-    }
-
-    private var preferredScheme: ColorScheme? {
-        switch appearance {
-        case "light": return .light
-        case "dark": return .dark
-        default: return nil
         }
     }
 
