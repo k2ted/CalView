@@ -139,9 +139,9 @@ struct ContentView: View {
             .keyboardShortcut("f", modifiers: .command)
             .help("Search events")
             .popover(isPresented: $showSearch) {
-                SearchView(events: calendar.visibleEvents) { event in
+                SearchView(calendar: calendar) { event in
                     showSearch = false
-                    pick(event, proxy)
+                    pick(event)
                 }
             }
 
@@ -259,7 +259,7 @@ struct ContentView: View {
         }
     }
 
-    private func pick(_ event: EKEvent, _ proxy: ScrollViewProxy) {
+    private func pick(_ event: EKEvent) {
         if let start = event.startDate {
             let cal = Calendar.current
             let end = event.endDate ?? start
@@ -270,14 +270,9 @@ struct ContentView: View {
             highlightedDays = firstDay...lastDay
             highlightToken = UUID()
 
-            if viewMode == "calendar" {
-                if let week = calendar.weekStarts.first(where: {
-                    cal.isDate(start, equalTo: $0, toGranularity: .weekOfYear)
-                }) {
-                    withAnimation {
-                        proxy.scrollTo(week, anchor: .top)
-                    }
-                }
+            // Make the event's month the first month of the range.
+            if let monthStart = cal.dateInterval(of: .month, for: start)?.start {
+                startMonth = monthStart
             }
         }
         // A short pause lets the search panel close before the details panel opens.

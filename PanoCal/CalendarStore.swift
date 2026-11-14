@@ -18,6 +18,11 @@ class CalendarStore {
     var accessDenied = false
     @ObservationIgnored private var currentMonths = 3
     @ObservationIgnored private var currentStart = Date()
+    @ObservationIgnored private var searchCache: [EKEvent]? = nil
+
+    // How far either side of today the search looks, in years.
+    private let searchYearsBack = 5
+    private let searchYearsAhead = 5
 
     var hiddenIDs: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "hiddenCalendars") ?? []) {
         didSet {
@@ -51,9 +56,44 @@ class CalendarStore {
 
     func startObservingChanges() async {
         for await _ in NotificationCenter.default.notifications(named: .EKEventStoreChanged) {
+            searchCache = nil
             store.refreshSourcesIfNecessary()
             await load(start: currentStart, months: currentMonths)
         }
+    }
+
+    // Every event in the search span, fetched a year at a time and remembered until the calendar changes.
+    func eventsForSearch() async -> [EKEvent] {
+        if let cached = searchCache { return cached }
+
+        let cal = Calendar.current
+        let now = Date()
+        guard let from = cal.date(byAdding: .year, value: -searchYearsBack, to: now),
+              let to = cal.date(byAdding: .year, value: searchYearsAhead, to: now) else { return [] }
+
+        var all: [EKEvent] = []
+        var seen: Set<String> = []
+        var chunkStart = cal.startOfDay(for: from)
+
+        while chunkStart < to {
+            let chunkEnd = min(cal.date(byAdding: .year, value: 1, to: chunkStart) ?? to, to)
+            let predicate = store.predicateForEvents(withStart: chunkStart, end: chunkEnd, calendars: nil)
+
+            for event in store.events(matching: predicate) {
+                // An event that crosses from one chunk into the next comes back twice, so skip repeats.
+                let key = "\(event.eventIdentifier ?? "")-\(event.startDate.timeIntervalSince1970)"
+                if seen.insert(key).inserted {
+                    all.append(event)
+                }
+            }
+
+            chunkStart = chunkEnd
+            await Task.yield()
+            if Task.isCancelled { return all }
+        }
+
+        searchCache = all
+        return all
     }
 
     func load(start: Date, months: Int) async {
